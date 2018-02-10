@@ -20,7 +20,7 @@ abstract class SqlElement implements Element {
 
     protected final SqlGraph graph;
     private final String id;
-    protected final String label;
+    protected String label;
 
     protected SqlElement(SqlGraph graph, String id, String label) {
         if (id == null) {
@@ -215,6 +215,7 @@ abstract class SqlElement implements Element {
     }
 
     public void setLabel(String label) throws SqlGraphException {
+    	this.label = label;
         String sql = "UPDATE " + getTableName() + " SET label" +
                 " = ? WHERE id = ?";
         	Connection conn = graph.getConnection();

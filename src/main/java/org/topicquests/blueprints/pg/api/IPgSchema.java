@@ -33,23 +33,21 @@ public interface IPgSchema {
 			  "key text NOT NULL,"+
 			  "value TEXT,"+
 			  "CONSTRAINT fk_vertex FOREIGN KEY (vertex_id) REFERENCES vertices (id)"+
-			    "ON DELETE CASCADE"+ //,"+
-			  //"PRIMARY KEY (vertex_id, key)"+ //TODO was unique
+			    "ON DELETE CASCADE"+
 			");",
 
 			"CREATE INDEX IF NOT EXISTS idx_vertex_properties ON vertex_properties (key);",
-			"CREATE INDEX IF NOT EXISTS idx_vertex_properties_2 ON vertex_properties (key, value);",
+			"CREATE INDEX IF NOT EXISTS idx_vertex_properties_2 ON vertex_properties (left(value, 200));",
 	
 			"CREATE TABLE IF NOT EXISTS edge_properties ("+
 			  "edge_id text NOT NULL,"+
 			  "key text NOT NULL,"+
 			  "value TEXT,"+
 			  "CONSTRAINT fk_edge FOREIGN KEY (edge_id) REFERENCES edges (id)"+
-			    "ON DELETE CASCADE"+ //,"+
-			  //"PRIMARY KEY (edge_id, key)"+ //TODO was unique
+			    "ON DELETE CASCADE"+ 
 			");",
 
 			"CREATE INDEX IF NOT EXISTS idx_edge_properties ON edge_properties (key);",
-			"CREATE INDEX IF NOT EXISTS idx_edge_properties_2 ON edge_properties (key, value);",
+			"CREATE INDEX IF NOT EXISTS idx_edge_properties_2 ON edge_properties (left(value, 200));"
 	};
 }
