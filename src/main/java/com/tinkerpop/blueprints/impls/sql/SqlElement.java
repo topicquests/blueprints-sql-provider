@@ -6,10 +6,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 import com.tinkerpop.blueprints.Element;
+
+import net.minidev.json.JSONObject;
 
 /**
  * @author Mike Bryant (http://github.com/mikesname)
@@ -42,6 +45,10 @@ abstract class SqlElement implements Element {
     
     //property getters and setters serve both edges and vertices
     // thus they need to getPropertyTableName
+    /**
+     * This is intended only for singleton properties
+     * But, just in case, it will still return a collection
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProperty(String key) {	//									e.g. vertex_properties
@@ -76,6 +83,30 @@ abstract class SqlElement implements Element {
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+    }
+    
+    /**
+     * Can return an empty list
+     * @param key
+     * @return
+     */
+    public List<String> listProperty(String key) {
+    	List<String> result = new ArrayList<String>();
+        String sql = "SELECT value FROM " + getPropertiesTableName() + " WHERE " +
+                getPropertyTableElementIdName() + " = ? AND key = ?";
+            	//e.g. vertex_id
+            try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
+                stmt.setString(1, id);
+                stmt.setString(2, key);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                    	result.add(rs.getString("value"));
+                    }
+                }
+            } catch (SQLException e) {
+                throw new SqlGraphException(e);
+            }    	
+    	return result;
     }
 
     @Override
@@ -112,6 +143,18 @@ abstract class SqlElement implements Element {
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+    }
+    
+    /**
+     * Builds non-redundant lists of properties
+     * If you don't mind redundant entries, just use setProperty
+     * @param key
+     * @param value
+     */
+    public void addToSetProperty(String key, String value) {
+    	List<String>l = this.listProperty(key);
+    	if (l.isEmpty() || !l.contains(value))
+    		setProperty(key, value);
     }
 
     @Override
@@ -226,5 +269,24 @@ abstract class SqlElement implements Element {
             } catch (SQLException e) {
             	throw new SqlGraphException(e);
             }
+    }
+    
+    /**
+     * Return this object as a JSONObject
+     * @return
+     */
+    public JSONObject getData() {
+    	JSONObject result = new JSONObject();
+    	result.put("id", getId());
+    	result.put("label", getLabel());
+    	Iterator<String>itr = this.getPropertyKeys().iterator();
+    	String key;;
+    	while (itr.hasNext()) {
+    		key = itr.next();
+    		if (!key.equals("label")) {
+    			result.put(key, getProperty(key));
+    		}
+    	}
+    	return result;
     }
 }

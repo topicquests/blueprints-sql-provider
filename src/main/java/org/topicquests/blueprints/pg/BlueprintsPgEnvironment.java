@@ -36,7 +36,7 @@ public class BlueprintsPgEnvironment extends RootEnvironment {
 		SqlGraph g = graphs.get(graphName);
 		
 		if (g == null) {
-			IPostgreSqlProvider provider = new PostgreSqlProvider(graphName);
+			IPostgreSqlProvider provider = new PostgreSqlProvider(graphName, "BlueprintsSchema");
 			provider.validateDatabase(IPgSchema.SCHEMA);
 		
 			g = new SqlGraph(this, provider);
