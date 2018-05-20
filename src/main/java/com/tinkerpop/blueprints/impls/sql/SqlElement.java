@@ -92,9 +92,8 @@ abstract class SqlElement implements Element {
                 	}
                 }
     	    	conn.closeConnection(r);
-
-                if (vals != null)
-                	return (T) vals;
+    	        if (valx != null)
+                	return (T) valx;
                 else
                 	return (T) val;
             }

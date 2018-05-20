@@ -72,7 +72,9 @@ public final class SqlGraph implements Graph {
     //TODO should this be an LRUCache?
     private final WeakHashMap<String, WeakReference<SqlVertex>> vertexCache = new WeakHashMap<>();
 
-   
+   public BlueprintsPgEnvironment getEnvironment() {
+	   return environment;
+   }
 
     public PostgresConnectionFactory getProvider() {
     	return provider;
