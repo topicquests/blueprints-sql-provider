@@ -3,7 +3,6 @@
 <properties>
 	<parameter name="GraphDatabaseName" value = "graphtest" />
 	<parameter name="GraphDatabaseSchema" value = "tq_graph" />
-	<parameter name="ClientCacheSize" value = "8192" />
 
 	<!-- URL for the server -->
 	<parameter name="DatabaseURL" value = "localhost" />
