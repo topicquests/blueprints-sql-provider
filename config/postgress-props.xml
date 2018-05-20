@@ -1,10 +1,16 @@
 <?xml version="1.0" ?>
 
 <properties>
+	<parameter name="GraphDatabaseName" value = "graphtest" />
+	<parameter name="GraphDatabaseSchema" value = "tq_graph" />
+	<parameter name="ClientCacheSize" value = "8192" />
+
 	<!-- URL for the server -->
 	<parameter name="DatabaseURL" value = "localhost" />
-	<parameter name="DatabasePort" value = "28015" />
-	<parameter name="DbUser" value = "testuser" />
+	<parameter name="DatabasePort" value = "5432" />
+	<parameter name="DbUser" value = "tq_admin" />
+	<parameter name="DbPwd" value = "tq-admin-pwd" />
+	<parameter name="ClientCacheSize" value = "8192" />
 	<!--  <parameter name="DbPwd" value = "testpwd" /> -->
 
 </properties>

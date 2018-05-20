@@ -5,6 +5,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.topicquests.blueprints.pg.BlueprintsEdgeIterable;
+import org.topicquests.blueprints.pg.BlueprintsVertexIterable;
+import org.topicquests.pg.PostgresConnectionFactory;
+import org.topicquests.pg.api.IPostgresConnection;
+import org.topicquests.support.ResultPojo;
+import org.topicquests.support.api.IResult;
+
 import com.tinkerpop.blueprints.CloseableIterable;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.GraphQuery;
@@ -17,6 +24,7 @@ import com.tinkerpop.blueprints.Vertex;
  * @since 1.0
  */
 public final class SqlGraphQuery implements GraphQuery {
+	private PostgresConnectionFactory provider;
 
     private final SqlGraph graph;
 
@@ -26,6 +34,7 @@ public final class SqlGraphQuery implements GraphQuery {
 
     SqlGraphQuery(SqlGraph graph) {
         this.graph = graph;
+        provider = graph.getProvider();
     }
 
     @Override
@@ -78,12 +87,17 @@ public final class SqlGraphQuery implements GraphQuery {
 
     @Override
     public CloseableIterable<Edge> edges() {
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
         try {
-            PreparedStatement stmt = generateStatement("SELECT id, vertex_in, vertex_out, label",
+        	conn = provider.getConnection();
+        	conn.setProxyRole(r);
+            r = generateStatement("SELECT id, vertex_in, vertex_out, label",
                 graph.getEdgesTableName(), graph.getEdgePropertiesTableName(), SqlEdge.getPropertyTableForeignKey(),
                 SqlEdge.DISALLOWED_PROPERTY_NAMES);
-
-            return new ResultSetIterable<Edge>(SqlEdge.GENERATOR, graph, stmt.executeQuery());
+        	
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (CloseableIterable<Edge>)new BlueprintsEdgeIterable(graph, rs);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -92,18 +106,22 @@ public final class SqlGraphQuery implements GraphQuery {
     @Override
     public CloseableIterable<Vertex> vertices() {
     	System.out.println("SqlGraphQuery.vertices");
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
         try {
-            PreparedStatement stmt = generateStatement("SELECT id, label", graph.getVerticesTableName(),
+        	conn = provider.getConnection();
+        	conn.setProxyRole(r);
+            r  = generateStatement("SELECT id, label", graph.getVerticesTableName(),
                 graph.getVertexPropertiesTableName(), SqlVertex.getPropertyTableForeignKey(),
                 SqlVertex.DISALLOWED_PROPERTY_NAMES);
-
-            return new ResultSetIterable<Vertex>(SqlVertex.GENERATOR, graph, stmt.executeQuery());
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (CloseableIterable<Vertex>)new BlueprintsVertexIterable(graph, rs);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
     }
 
-    private PreparedStatement generateStatement(String select, String mainTable, String propsTable, String propsTableFK,
+    private IResult generateStatement(String select, String mainTable, String propsTable, String propsTableFK,
      	List<String> specialProps) throws SQLException {
         System.out.println("SqlGraphQuery "+select+" | "+mainTable+" "+propsTable+" "+" "+propsTableFK+" "+specialProps);
 
@@ -114,15 +132,19 @@ public final class SqlGraphQuery implements GraphQuery {
             sql.sql.append(" LIMIT ").append(limit);
         }
 
-        PreparedStatement stmt = graph.getConnection()
-            .prepareStatement(sql.sql.toString(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-
-        int i = 1;
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        conn = provider.getConnection();
+        conn.setProxyRole(r);
+        int len = sql.params.size();
+        Object [] vals = new Object[len];
+        int i = 0;
         for (Object p : sql.params) {
-            stmt.setObject(i++, p);
+            vals[i++] = p;
         }
 
-        return stmt;
+        conn.executeSelect(sql.toString(), r, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, vals);
+        return r;
     }
 
 }

@@ -7,6 +7,12 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
+import org.topicquests.blueprints.pg.BlueprintsEdgeIterable;
+import org.topicquests.blueprints.pg.BlueprintsVertexIterable;
+import org.topicquests.pg.api.IPostgresConnection;
+import org.topicquests.support.ResultPojo;
+import org.topicquests.support.api.IResult;
+
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
@@ -20,17 +26,6 @@ import com.tinkerpop.blueprints.VertexQuery;
  */
 public class SqlVertex extends SqlElement implements Vertex {
 
-    public static final ElementGenerator<SqlVertex> GENERATOR = new ElementGenerator<SqlVertex>() {
-        @Override
-        public SqlVertex generate(SqlGraph graph, ResultSet rs) {
-            try {
-                return new SqlVertex(graph, rs.getString("id"), rs.getString("label"));
-            } catch (SQLException e) {
-                throw new SqlGraphException("Failed to generate SqlVertex from resultset", e);
-            }
-        }
-    };
-
     public static final List<String> DISALLOWED_PROPERTY_NAMES = Arrays.asList("id");
 
     public SqlVertex(SqlGraph graph, String id, String label) {
@@ -43,10 +38,16 @@ public class SqlVertex extends SqlElement implements Vertex {
 
     @Override
     public void remove() {
-    	Connection conn = graph.getConnection();
-        try (PreparedStatement stmt = graph.getStatements().getRemoveVertex(conn,getId())) {
-            stmt.executeUpdate();
-            //conn.commit();
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+        	conn.setProxyRole(r);
+        	conn.beginTransaction(r);
+            String sql = "DELETE FROM tq_graph.vertices WHERE id = ?";
+            conn.executeSQL(sql, r, getId());
+            conn.endTransaction(r);
+            conn.closeConnection(r);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -89,28 +90,34 @@ public class SqlVertex extends SqlElement implements Vertex {
 
         addLabelConditions(sql, "e", labels);
 
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
         try {
-            PreparedStatement stmt = graph.getConnection()
-                .prepareStatement(sql.toString(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            stmt.setString(1, getId());
-            int inc = 2;
+        	conn = provider.getConnection();
+        	conn.setProxyRole(r);
+        	int len = (1+labels.length) * 2;
+        	Object [] vals = new Object[len];
+        	vals[0] = getId();
+            int inc = 1;
             if (direction == Direction.BOTH) {
                 for (int i = 0; i < labels.length; ++i) {
-                    stmt.setString(i + inc, labels[i]);
+                    vals[i + inc] = labels[i];
                 }
 
                 inc += labels.length;
 
-                stmt.setString(inc, getId());
+                vals[inc] = getId();
 
                 inc++;
             }
 
             for (int i = 0; i < labels.length; ++i) {
-                stmt.setString(i + inc, labels[i]);
+                vals[i + inc] = labels[i];
             }
-
-            return new ResultSetIterable<Edge>(SqlEdge.GENERATOR, graph, stmt.executeQuery());
+            conn.executeSelect(sql.toString(), r, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, vals);
+        	
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (Iterable<Edge>)new BlueprintsEdgeIterable(graph, rs);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -136,28 +143,34 @@ public class SqlVertex extends SqlElement implements Vertex {
 
         addLabelConditions(sql, "e", labels);
 System.out.println("SqlVertex.getVertices "+sql.toString());
-        try {
-            PreparedStatement stmt = graph.getConnection()
-                .prepareStatement(sql.toString(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            stmt.setString(1, getId());
-            int inc = 2;
+		IPostgresConnection conn = null;
+		IResult r = new ResultPojo();
+		try {
+			conn = provider.getConnection();
+			conn.setProxyRole(r);
+            int inc = 1;
+            int len = (1+labels.length)*2;
+            Object [] vals = new Object[len];
+            vals[0] = getId();
             if (direction == Direction.BOTH) {
                 for (int i = 0; i < labels.length; ++i) {
-                    stmt.setString(i + inc, labels[i]);
+                	vals[i + inc] = labels[i];
                 }
 
                 inc += labels.length;
 
-                stmt.setString(inc, getId());
+                vals[inc] = getId();
 
                 inc++;
             }
 
             for (int i = 0; i < labels.length; ++i) {
-                stmt.setString(i + inc, labels[i]);
+            	vals[i + inc] = labels[i];
             }
-
-            return new ResultSetIterable<Vertex>(SqlVertex.GENERATOR, graph, stmt.executeQuery());
+            conn.executeSelect(sql.toString(), r, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, vals);
+        	
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (Iterable<Vertex>)new BlueprintsVertexIterable(graph, rs);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }

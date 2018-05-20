@@ -5,6 +5,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 
+import org.topicquests.blueprints.pg.BlueprintsEdgeIterable;
+import org.topicquests.blueprints.pg.BlueprintsVertexIterable;
+import org.topicquests.pg.PostgresConnectionFactory;
+import org.topicquests.pg.api.IPostgresConnection;
+import org.topicquests.support.ResultPojo;
+import org.topicquests.support.api.IResult;
+
 import com.tinkerpop.blueprints.CloseableIterable;
 import com.tinkerpop.blueprints.Contains;
 import com.tinkerpop.blueprints.Direction;
@@ -18,6 +25,7 @@ import com.tinkerpop.blueprints.VertexQuery;
  * @since 1.0
  */
 public final class SqlVertexQuery implements VertexQuery {
+	private PostgresConnectionFactory provider;
 
     private final SqlGraph graph;
     private final String rootVertexId;
@@ -28,6 +36,7 @@ public final class SqlVertexQuery implements VertexQuery {
     public SqlVertexQuery(SqlGraph graph, String rootVertexId) {
     	System.out.println("SqlVertexQuery- "+rootVertexId);
         this.graph = graph;
+        provider = graph.getProvider();
         this.rootVertexId = rootVertexId;
     }
 
@@ -45,8 +54,11 @@ public final class SqlVertexQuery implements VertexQuery {
 
     @Override
     public long count() {
-        try (PreparedStatement stmt = generateCountEdgeQuery()) {
-            try (ResultSet rs = stmt.executeQuery()) {
+        try {
+        		
+        	IResult r = generateCountEdgeQuery();
+        	ResultSet rs = (ResultSet)r.getResultObject();
+        	if (rs != null) {
                 if (!rs.next()) {
                     return 0;
                 }
@@ -62,6 +74,7 @@ public final class SqlVertexQuery implements VertexQuery {
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+        return -1;
     }
 
     @Override
@@ -120,9 +133,10 @@ public final class SqlVertexQuery implements VertexQuery {
     @Override
     public CloseableIterable<Edge> edges() {
         try {
-            PreparedStatement stmt = generateEdgeQuery();
-            return new ResultSetIterable<Edge>(SqlEdge.GENERATOR, graph, stmt.executeQuery());
-        } catch (SQLException e) {
+            IResult r = generateEdgeQuery();
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (CloseableIterable<Edge>)new BlueprintsEdgeIterable(graph, rs);
+         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
     }
@@ -131,19 +145,21 @@ public final class SqlVertexQuery implements VertexQuery {
     @Override
     public CloseableIterable<Vertex> vertices() {
         try {
-            PreparedStatement stmt = generateVertexQuery();
-            long artificialLimit = direction == Direction.BOTH ? limit : -1;
-            return new ResultSetIterable<Vertex>(SqlVertex.GENERATOR, graph, stmt.executeQuery(), artificialLimit);
-        } catch (SQLException e) {
+            IResult r = generateVertexQuery();
+            //long artificialLimit = direction == Direction.BOTH ? limit : -1;
+            //return new ResultSetIterable<Vertex>(SqlVertex.GENERATOR, graph, stmt.executeQuery(), artificialLimit);
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (CloseableIterable<Vertex>)new BlueprintsVertexIterable(graph, rs);
+       } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
     }
 
-    private PreparedStatement generateCountEdgeQuery() throws SQLException {
+    private IResult generateCountEdgeQuery() throws SQLException {
         return generateQuery("SELECT COUNT(*)");
     }
 
-    private PreparedStatement generateEdgeQuery() throws SQLException {
+    private IResult generateEdgeQuery() throws SQLException {
         return generateQuery("SELECT id, vertex_in, vertex_out, label");
     }
 
@@ -156,7 +172,7 @@ public final class SqlVertexQuery implements VertexQuery {
      * @return
      * @throws SQLException
      */
-    private PreparedStatement generateVertexQuery() throws SQLException {
+    private IResult generateVertexQuery() throws SQLException {
         String select;
         switch (direction) {
         case IN:
@@ -182,20 +198,24 @@ public final class SqlVertexQuery implements VertexQuery {
 
     }
 
-    private PreparedStatement generateQuery(String select) throws SQLException {
+    private IResult generateQuery(String select) throws SQLException {
         return generateQuery(generateQueryString(select));
     }
 
-    private PreparedStatement generateQuery(QueryFilters.SqlAndParams sql) throws SQLException {
-        PreparedStatement stmt = graph.getConnection()
-            .prepareStatement(sql.sql.toString(), ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-
-        int i = 1;
+    private IResult generateQuery(QueryFilters.SqlAndParams sql) throws SQLException {
+  	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        conn = provider.getConnection();
+        conn.setProxyRole(r);
+        int len = sql.params.size();
+        int i = 0;
+        Object [] vals = new Object[len];
         for (Object p : sql.params) {
-            stmt.setObject(i++, p);
+            vals[i++] = p;
         }
+        conn.executeSelect(sql.sql.toString(), r, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, vals);
 
-        return stmt;
+        return r;
     }
 
     private QueryFilters.SqlAndParams generateQueryString(String select) throws SQLException {

@@ -1,8 +1,6 @@
 package com.tinkerpop.blueprints.impls.sql;
 
 import java.lang.ref.WeakReference;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.WeakHashMap;
@@ -10,12 +8,14 @@ import java.util.WeakHashMap;
 import com.tinkerpop.blueprints.CloseableIterable;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Features;
-import com.tinkerpop.blueprints.ThreadedTransactionalGraph;
-import com.tinkerpop.blueprints.TransactionalGraph;
+import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
 
+import org.topicquests.blueprints.pg.BlueprintsVertexIterable;
+import org.topicquests.blueprints.pg.BlueprintsEdgeIterable;
 import org.topicquests.blueprints.pg.BlueprintsPgEnvironment;
-import org.topicquests.pg.api.IPostgreSqlProvider;
+import org.topicquests.pg.PostgresConnectionFactory;
+import org.topicquests.pg.api.IPostgresConnection;
 import org.topicquests.support.ResultPojo;
 import org.topicquests.support.api.IResult;
 
@@ -25,7 +25,7 @@ import org.topicquests.support.api.IResult;
  * @since 1.0
  * @author for changes: park
  */
-public final class SqlGraph implements ThreadedTransactionalGraph {
+public final class SqlGraph implements Graph {
     private static final Features FEATURES = new Features();
     private BlueprintsPgEnvironment environment;
     static {
@@ -62,75 +62,36 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
         FEATURES.supportsThreadIsolatedTransactions = false;
     }
 
-    private IPostgreSqlProvider provider;
-   // private final DataSource dataSource;
-   // private volatile Connection connection;
-    private volatile Statements statements;
+	private PostgresConnectionFactory provider;
     private final String verticesTableName;
     private final String edgesTableName;
     private final String vertexPropertiesTableName;
     private final String edgePropertiesTableName;
     
-	/**
-	 * Pools Connections for each local thread
-	 * Must be closed when the thread terminates
-	 */
-	private ThreadLocal<Connection> localMapConnection = new ThreadLocal<Connection>();
 
     //TODO should this be an LRUCache?
     private final WeakHashMap<String, WeakReference<SqlVertex>> vertexCache = new WeakHashMap<>();
 
    
 
-
+    public PostgresConnectionFactory getProvider() {
+    	return provider;
+    }
     
 
-    public SqlGraph(BlueprintsPgEnvironment env, IPostgreSqlProvider p) {
+    public SqlGraph(BlueprintsPgEnvironment env, PostgresConnectionFactory p) {
     	environment = env;
     	provider = p;
     	verticesTableName = "vertices";
         edgesTableName = "edges";
         vertexPropertiesTableName = "vertex_properties";
         edgePropertiesTableName = "edge_properties";
-        statements = new Statements(this);
     }
     
 
     
 
-    @Override
-    public TransactionalGraph newTransaction() {
-        return new SqlGraph(environment, provider);
-    }
-
-    @Override
-    public void stopTransaction(Conclusion conclusion) {
-        if (conclusion == Conclusion.SUCCESS) {
-            commit();
-        } else {
-            rollback();
-        }
-    }
-
-    @Override
-    public void commit() {
-        /*try {
-            ensureConnection();
-            connection.commit();
-        } catch (SQLException e) {
-            throw new SqlGraphException(e);
-        }*/
-    }
-
-    @Override
-    public void rollback() {
-       /* try {
-            ensureConnection();
-            connection.rollback();
-        } catch (SQLException e) {
-            throw new SqlGraphException(e);
-        }*/
-    }
+ 
 
     @Override
     public Features getFeatures() {
@@ -143,21 +104,25 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
     }
     
     public Vertex addVertex(String id, String label) {
-    	Connection conn = getConnection();
-        try (PreparedStatement stmt = statements.getAddVertex(conn)) {
-        	stmt.setString(1, id);
-        	stmt.setString(2, label);
-            if (stmt.executeUpdate() == 0) {
-                return null;
-            }
-            //conn.commit();
-            try (ResultSet rs = stmt.getGeneratedKeys()) {
-                return cache(statements.fromVertexResultSet(rs));
-            }
-            
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+	    Vertex result = null;
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+        	conn.beginTransaction(r);
+        	String sql = "INSERT INTO tq_graph.vertices (id, label) VALUES (?, ?)";
+        	Object [] vals = new Object[2];
+        	vals[0] = id;
+        	vals[1] = label;
+        	conn.executeSQL(sql, r, vals);
+        	conn.endTransaction(r);
+        	conn.closeConnection(r);
+        	result = this.cache(new SqlVertex(this, id, label));
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+        return result;
     }
 
     @Override
@@ -175,29 +140,44 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
             return v;
         }
 
-        Connection conn = getConnection();
-        try (PreparedStatement stmt = statements.getGetVertex(conn, realId)) {
-            if (!stmt.execute()) {
-                return null;
-            }
-
-            try (ResultSet rs = stmt.getResultSet()) {
-                return cache(statements.fromVertexResultSet(rs));
-            }
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+        	String sql = "SELECT id, label FROM tq_graph.vertices WHERE id = ?";
+        	conn.executeSelect(sql, r, (String)id);
+        	ResultSet rs = (ResultSet)r.getResultObject();
+        	if (rs != null) {
+        		if (rs.next()) {
+        			String idx = rs.getString("id");
+        			String lbl = rs.getString("label");
+        			v = this.cache(new SqlVertex(this, idx, lbl));
+        		}
+        	}
+        	conn.closeConnection(r);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+        return v;
     }
 
     @Override
     public void removeVertex(Vertex vertex) {
-    	Connection conn = getConnection();
-        try (PreparedStatement stmt = statements.getRemoveVertex(conn, (String)vertex.getId())) {
-            if (stmt.executeUpdate() == 0) {
-                throw new IllegalStateException("Vertex with id " + vertex.getId() + " doesn't exist.");
-            }
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+        	conn.beginTransaction(r);
+
+        	String sql = "DELETE FROM vertices WHERE id = ?";
+        	conn.executeSQL(sql, r, (String)vertex.getId());
+        	conn.endTransaction(r);
+        	conn.closeConnection(r);
+        	
             vertexCache.remove(vertex.getId());
-            //conn.commit();
+            
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -205,23 +185,23 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
 
     @Override
     public CloseableIterable<Vertex> getVertices() {
-    	Connection conn = getConnection();
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
         try {
-            PreparedStatement stmt = statements.getAllVertices(conn);
+        	conn = provider.getConnection();
+        	conn.setProxyRole(r);
+            String sql = "SELECT id, label FROM tq_graph.vertices";
+            conn.executeSelect(sql, r,  ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, null);
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (CloseableIterable<Vertex>)new BlueprintsVertexIterable(this, rs);
 
-            if (!stmt.execute()) {
-                stmt.close();
-                return ResultSetIterable.empty();
-            }
-
-            return new ResultSetIterable<Vertex>(SqlVertex.GENERATOR, this, stmt.getResultSet());
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
     }
 
     @Override
-    public CloseableIterable<Vertex> getVertices(String key, Object value) {
+    public Iterable<Vertex> getVertices(String key, Object value) {
         return query().has(key, value).vertices();
     }
 
@@ -231,34 +211,28 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
             throw new IllegalArgumentException("null label");
         }
 
-        Connection conn = getConnection();
-
-        try (PreparedStatement stmt = statements
-            .getAddEdge(conn, (String)id, (String) inVertex.getId(), (String) outVertex.getId(), label)) {
-
-            if (stmt.executeUpdate() == 0) {
-                return null;
-            }
-            //conn.commit();
-            String eid = (String)id;
-            try (ResultSet rs = stmt.getGeneratedKeys()) {
-                if (!rs.next()) {
-                    return null;
-                }
-
-                eid = rs.getString("id");
-            }
-
-            try (ResultSet rs = statements.getGetEdge(conn, eid).executeQuery()) {
-                if (!rs.next()) {
-                    return null;
-                }
-
-                return SqlEdge.GENERATOR.generate(this, rs);
-            }
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+	    SqlEdge result = null;
+        try {
+        	conn = provider.getConnection();
+        	conn.setProxyRole(r);
+        	conn.beginTransaction(r);
+        	String sql = "INSERT INTO tq_graph.edges (id, vertex_in, vertex_out, label) VALUES (?, ?, ?, ?)";
+        	Object [] vals = new Object[4];
+        	vals[0] = id;
+        	vals[1] = inVertex.getId();
+        	vals[2] = outVertex.getId();
+        	vals[3] = label;
+        	conn.executeSQL(sql, r, vals);
+        	conn.endTransaction(r);
+        	conn.closeConnection(r);
+        	result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
+        			(String)outVertex.getId(), label);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+        return result;
     }
 
     @Override
@@ -268,45 +242,63 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
             return null;
         }
 
-        Connection conn = getConnection();
-
-        try (PreparedStatement stmt = statements.getGetEdge(conn, eid)) {
-            if (!stmt.execute()) {
-                return null;
-            }
-
-            try (ResultSet rs = stmt.getResultSet()) {
-                if (!rs.next()) {
-                    return null;
-                }
-                return SqlEdge.GENERATOR.generate(this, rs);
-            }
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+	    SqlEdge result = null;;
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+        	String sql = "SELECT id, vertex_in, vertex_out, label FROM tq_graph.edges WHERE id = ?";	
+        	conn.executeSelect(sql, r, id);
+        	ResultSet rs = (ResultSet)r.getResultObject();
+        	if (rs != null) {
+        		if (rs.next()) {
+        			result = new SqlEdge( this,
+        					rs.getString(1),
+        					rs.getString(2),
+        					rs.getString(3),
+        					rs.getString(4));
+        		}
+        	}
+        	conn.closeConnection(r);
+        	
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+        return result;
     }
 
     @Override
     public void removeEdge(Edge edge) {
-    	Connection conn = getConnection();
-
-        try (PreparedStatement stmt = statements.getRemoveEdge(conn, (String) edge.getId())) {
-            if (stmt.executeUpdate() == 0) {
-                throw new IllegalStateException("Edge with id " + edge.getId() + " doesn't exist.");
-            }
-            //conn.commit();
-        } catch (SQLException e) {
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+            conn = provider.getConnection();
+           	conn.setProxyRole(r);
+            conn.beginTransaction(r);
+            String sql = "DELETE FROM tq_graph.edges WHERE id = ?";
+            //we are going to ignore removing something that doesn't exist
+            conn.executeSQL(sql, r, edge.getId());
+            conn.endTransaction(r);
+            conn.closeConnection(r);
+         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
     }
 
     @Override
-    public Iterable<Edge> getEdges() {
-    	Connection conn = getConnection();
-
+    public CloseableIterable<Edge> getEdges() {
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
         try {
-            PreparedStatement stmt = statements.getAllEdges(conn);
-            return new ResultSetIterable<Edge>(SqlEdge.GENERATOR, this, stmt.executeQuery());
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+            String sql = "SELECT id, vertex_in, vertex_out, label FROM tq_graph.edges";
+            conn.executeSelect(sql, r, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, null);
+        	
+            ResultSet rs = (ResultSet)r.getResultObject();
+            return (CloseableIterable<Edge>)new BlueprintsEdgeIterable(this, rs);
+
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -324,22 +316,12 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
 
     @Override
     public void shutdown() {
-        this.closeLocalConnection();
+       //
     }
 
     @Override
     public String toString() {
         return "sqlgraph()"; //TODO
-    }
-
-    
-    Connection getConnection() {
-        IResult c = getMapConnection();
-        return (Connection)c.getResultObject();
-    }
-
-    Statements getStatements() {
-        return statements;
     }
 
     String getVerticesTableName() {
@@ -381,48 +363,4 @@ public final class SqlGraph implements ThreadedTransactionalGraph {
         return v;
     }
     
-	/////////////////
-	// connection handling
-	////////////////
-
-	private IResult getMapConnection() {
-		synchronized (localMapConnection) {
-			IResult result = new ResultPojo();
-			try {
-				Connection con = this.localMapConnection.get();
-				//because we don't "setInitialValue", this returns null if nothing for this thread
-				if (con == null) {
-					con = provider.getConnection();
-					System.out.println("GETMAPCONNECTION " + con);
-					localMapConnection.set(con);
-				}
-				result.setResultObject(con);
-			} catch (Exception e) {
-				result.addErrorString(e.getMessage());
-				if (environment != null)
-					environment.logError(e.getMessage(), e);
-			}
-			return result;
-		}
-	}
-
-	IResult closeLocalConnection() {
-		IResult result = new ResultPojo();
-		boolean isError = false;
-		try {
-			synchronized (localMapConnection) {
-				Connection con = this.localMapConnection.get();
-				if (con != null)
-					con.close();
-				localMapConnection.remove();
-				//  localMapConnection.set(null);
-			}
-		} catch (SQLException e) {
-			isError = true;
-			result.addErrorString(e.getMessage());
-		}
-		if (!isError)
-			result.setResultObject("OK");
-		return result;
-	}
 }

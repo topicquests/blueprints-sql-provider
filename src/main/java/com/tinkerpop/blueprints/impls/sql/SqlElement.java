@@ -10,6 +10,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.topicquests.pg.PostgresConnectionFactory;
+import org.topicquests.pg.api.IPostgresConnection;
+import org.topicquests.support.ResultPojo;
+import org.topicquests.support.api.IResult;
+
 import com.tinkerpop.blueprints.Element;
 
 import net.minidev.json.JSONObject;
@@ -24,6 +29,8 @@ abstract class SqlElement implements Element {
     protected final SqlGraph graph;
     private final String id;
     protected String label;
+	protected PostgresConnectionFactory provider;
+
 
     protected SqlElement(SqlGraph graph, String id, String label) {
         if (id == null) {
@@ -33,6 +40,7 @@ abstract class SqlElement implements Element {
         this.graph = graph;
         this.id = id;
         this.label = label;
+        provider = graph.getProvider();
     }
 
     protected abstract String getPropertiesTableName();
@@ -55,26 +63,36 @@ abstract class SqlElement implements Element {
         String sql = "SELECT value FROM " + getPropertiesTableName() + " WHERE " +
             getPropertyTableElementIdName() + " = ? AND key = ?";
         	//e.g. vertex_id
-        try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
-            stmt.setString(1, id);
-            stmt.setString(2, key);
-            try (ResultSet rs = stmt.executeQuery()) {
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+
+        	Object [] vals = new Object[2];
+        	vals[0] = id;
+        	vals[1] = key;
+        	conn.executeSelect(sql, r, vals);
+            ResultSet rs = (ResultSet)r.getResultObject();
+            if (rs != null) {
             	//MODIFY to return String or collection
             	//Required modification of property tables to
             	// drop UNIQUE in favor of PRIMARY KEY
                 String val = null;
-                List<String> vals= null;
+                List<String> valx= null;
                 while (rs.next()) {
                 	if (val == null)
                 		val = rs.getString("value");
-                	else if (vals == null) {
-                		vals = new ArrayList<String>();
-                		vals.add(val);
-                		vals.add(rs.getString("value"));
+                	else if (valx == null) {
+                		valx = new ArrayList<String>();
+                		valx.add(val);
+                		valx.add(rs.getString("value"));
                 	} else {
-                		vals.add(rs.getString("value"));
+                		valx.add(rs.getString("value"));
                 	}
                 }
+    	    	conn.closeConnection(r);
+
                 if (vals != null)
                 	return (T) vals;
                 else
@@ -83,6 +101,7 @@ abstract class SqlElement implements Element {
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
+        return null;
     }
     
     /**
@@ -95,17 +114,27 @@ abstract class SqlElement implements Element {
         String sql = "SELECT value FROM " + getPropertiesTableName() + " WHERE " +
                 getPropertyTableElementIdName() + " = ? AND key = ?";
             	//e.g. vertex_id
-            try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
-                stmt.setString(1, id);
-                stmt.setString(2, key);
-                try (ResultSet rs = stmt.executeQuery()) {
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+
+        	Object [] vals = new Object[2];
+        	vals[0] = id;
+        	vals[1] = key;
+        	conn.executeSelect(sql, r, vals);
+            ResultSet rs = (ResultSet)r.getResultObject();
+            if (rs != null) {
                     while (rs.next()) {
                     	result.add(rs.getString("value"));
                     }
-                }
-            } catch (SQLException e) {
+            }
+	    	conn.closeConnection(r);
+
+        } catch (SQLException e) {
                 throw new SqlGraphException(e);
-            }    	
+        }    	
     	return result;
     }
 
@@ -113,17 +142,22 @@ abstract class SqlElement implements Element {
     public Set<String> getPropertyKeys() {
         String sql =
             "SELECT key FROM " + getPropertiesTableName() + " WHERE " + getPropertyTableElementIdName() + " = ?";
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
 
-        try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
-            stmt.setString(1, id);
-
+        	conn.executeSelect(sql, r, id);
+ 
             Set<String> ret = new HashSet<>();
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    ret.add(rs.getString(1));
-                }
+            ResultSet rs = (ResultSet)r.getResultObject();
+            if (rs != null) {
+                    while (rs.next()) {
+                    	ret.add(rs.getString(1));
+                    }
             }
+	    	conn.closeConnection(r);
 
             return ret;
         } catch (SQLException e) {
@@ -135,11 +169,20 @@ abstract class SqlElement implements Element {
     	String sql = "UPDATE " + getPropertiesTableName() + " SET value" +
                 " = ? WHERE " +
                 getPropertyTableElementIdName() + " = ? AND key = ? AND value = ?";
-        try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
-            stmt.setObject(1, newValue);
-            stmt.setString(2, id);
-            stmt.setString(3, key);
-            stmt.setString(4, oldValue);
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+
+        	Object [] vals = new Object[4];     		
+			vals[0] = newValue;
+			vals[1] = id;
+			vals[2] = key;
+			vals[3] = oldValue;
+			conn.executeUpdate(sql, r, vals);
+	    	conn.closeConnection(r);
+
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -173,12 +216,20 @@ abstract class SqlElement implements Element {
         String sql = "INSERT INTO " + getPropertiesTableName() + " (" + getPropertyTableElementIdName() +
             ", key, value) VALUES (?, ?, ?)";
 
-        try (PreparedStatement stmt2 = graph.getConnection().prepareStatement(sql)) {
-            stmt2.setString(1, id);
-            stmt2.setString(2, key);
-            stmt2.setObject(3, value);
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+	    try {
+	    	conn = provider.getConnection();
+	       	conn.setProxyRole(r);
 
-            stmt2.executeUpdate();
+	    	conn.beginTransaction(r);
+	    	Object [] vals = new Object[3];
+	    	vals[0] = id;
+	    	vals[1] = key;
+	    	vals[2] = value;
+	    	conn.executeSQL(sql, r, vals);
+	    	conn.endTransaction(r);
+	    	conn.closeConnection(r);
          } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
@@ -191,12 +242,21 @@ abstract class SqlElement implements Element {
      */
     public void deleteProperty(String key, String value) {
         String sql = "DELETE FROM " + getPropertiesTableName() + " WHERE " + getPropertyTableElementIdName() + " = ? AND key = ? AND value = ?";
-        try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
-            stmt.setString(1, id);
-            stmt.setString(2, key);
-            stmt.setString(3, value);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();   
+           	conn.setProxyRole(r);
+
+	    	conn.beginTransaction(r);
+	    	Object [] vals = new Object[3];
+	    	vals[0] = id;
+	    	vals[1] = key;
+	    	vals[2] = value;
+	    	conn.executeSQL(sql, r, vals);
+	    	conn.endTransaction(r);
+	    	conn.closeConnection(r);
+	    } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
     }
@@ -206,10 +266,19 @@ abstract class SqlElement implements Element {
         T value = getProperty(key);
 
         String sql = "DELETE FROM " + getPropertiesTableName() + " WHERE " + getPropertyTableElementIdName() + " = ? AND key = ?";
-        try (PreparedStatement stmt = graph.getConnection().prepareStatement(sql)) {
-            stmt.setString(1, id);
-            stmt.setString(2, key);
-            stmt.executeUpdate();
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection(); 
+           	conn.setProxyRole(r);
+
+	    	conn.beginTransaction(r);
+	    	Object [] vals = new Object[2];
+	    	vals[0] = id;
+	    	vals[1] = key;
+	    	conn.executeSQL(sql, r, vals);
+	    	conn.endTransaction(r);
+	    	conn.closeConnection(r);
             return value;
         } catch (SQLException e) {
             throw new SqlGraphException(e);
@@ -261,14 +330,22 @@ abstract class SqlElement implements Element {
     	this.label = label;
         String sql = "UPDATE " + getTableName() + " SET label" +
                 " = ? WHERE id = ?";
-        	Connection conn = graph.getConnection();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, label);
-                stmt.setString(2, getId());
-                stmt.executeUpdate();
-            } catch (SQLException e) {
-            	throw new SqlGraphException(e);
-            }
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();   
+           	conn.setProxyRole(r);
+
+	    	conn.beginTransaction(r);
+	    	Object [] vals = new Object[2];
+	    	vals[0] = label;
+	    	vals[1] = getId();
+	    	conn.executeSQL(sql, r, vals);
+	    	conn.endTransaction(r);
+	    	conn.closeConnection(r);
+        } catch (SQLException e) {
+            throw new SqlGraphException(e);
+        }
     }
     
     /**

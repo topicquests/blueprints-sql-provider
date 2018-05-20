@@ -18,7 +18,8 @@ public class PgsqlDevTestMain {
 		//new FirstEdge();
 		//new PropertyTest();
 		//new QueryTest();
-		new PropertyTest_2();
+		//new PropertyTest_2();
+		new NewTest();
 	}
 
 }

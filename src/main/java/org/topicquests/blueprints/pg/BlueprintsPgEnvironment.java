@@ -5,8 +5,7 @@ package org.topicquests.blueprints.pg;
 import java.util.*;
 
 import org.topicquests.blueprints.pg.api.IPgSchema;
-import org.topicquests.pg.PostgreSqlProvider;
-import org.topicquests.pg.api.IPostgreSqlProvider;
+import org.topicquests.pg.PostgresConnectionFactory;
 import org.topicquests.support.RootEnvironment;
 
 import com.tinkerpop.blueprints.impls.sql.SqlGraph;
@@ -18,12 +17,18 @@ import com.tinkerpop.blueprints.impls.sql.SqlGraph;
  */
 public class BlueprintsPgEnvironment extends RootEnvironment {
 	private Map<String, SqlGraph> graphs;
+	private PostgresConnectionFactory provider;
+
 	/**
 	 * 
 	 */
 	public BlueprintsPgEnvironment() {
 		super("postgress-props.xml", "logger.properties");
 		graphs = new HashMap<String, SqlGraph>();
+		String dbName = getStringProperty("GraphDatabaseName");
+		String schemaName = getStringProperty("GraphDatabaseSchema");
+        provider = new PostgresConnectionFactory(dbName, schemaName);
+
 	}
 
 	
@@ -35,10 +40,7 @@ public class BlueprintsPgEnvironment extends RootEnvironment {
 	public SqlGraph getGraph(String graphName) {
 		SqlGraph g = graphs.get(graphName);
 		
-		if (g == null) {
-			IPostgreSqlProvider provider = new PostgreSqlProvider(graphName, "BlueprintsSchema");
-			provider.validateDatabase(IPgSchema.SCHEMA);
-		
+		if (g == null) {		
 			g = new SqlGraph(this, provider);
 			graphs.put(graphName, g);
 		}

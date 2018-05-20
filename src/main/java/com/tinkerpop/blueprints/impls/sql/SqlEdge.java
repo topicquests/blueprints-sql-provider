@@ -7,6 +7,11 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
+import org.topicquests.pg.PostgresConnectionFactory;
+import org.topicquests.pg.api.IPostgresConnection;
+import org.topicquests.support.ResultPojo;
+import org.topicquests.support.api.IResult;
+
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
@@ -18,22 +23,6 @@ import com.tinkerpop.blueprints.Vertex;
  * @author for changes: park
  */
 public class SqlEdge extends SqlElement implements Edge {
-
-    public static final ElementGenerator<SqlEdge> GENERATOR = new ElementGenerator<SqlEdge>() {
-        @Override
-        public SqlEdge generate(SqlGraph graph, ResultSet rs) {
-            try {
-                String id = rs.getString(1);
-                String vin = rs.getString(2);
-                String vout = rs.getString(3);
-                String lbl = rs.getString(4);
-
-                return new SqlEdge(graph, id, vin, vout, lbl);
-            } catch (SQLException e) {
-                throw new SqlGraphException(e);
-            }
-        }
-    };
 
     public static final List<String> DISALLOWED_PROPERTY_NAMES = Arrays.asList("id", "label");
 
@@ -54,10 +43,17 @@ public class SqlEdge extends SqlElement implements Edge {
 
     @Override
     public void remove() {
-    	Connection conn = graph.getConnection();
-        try (PreparedStatement stmt = graph.getStatements().getRemoveEdge(conn, getId())) {
-            stmt.executeUpdate();
-            //conn.commit();
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+
+        	conn.beginTransaction(r);
+            String sql = "DELETE FROM tq_graph.edges WHERE id = ?";
+            conn.executeSQL(sql, r, getId());
+            conn.endTransaction(r);
+            conn.closeConnection(r);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         }
