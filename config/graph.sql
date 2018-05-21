@@ -15,6 +15,9 @@ tq_graph.vertices (
 GRANT ALL PRIVILEGES ON tq_graph.vertices TO tq_proxy;
 GRANT SELECT ON tq_graph.vertices TO tq_proxy_ro;
 
+CREATE INDEX IF NOT EXISTS idx_vertex_ids
+	ON tq_graph.vertices (id);
+
 CREATE INDEX IF NOT EXISTS idx_vertex_labels
 	ON tq_graph.vertices (label);
 
@@ -32,6 +35,15 @@ tq_graph.edges (
 
 GRANT ALL PRIVILEGES ON tq_graph.edges TO tq_proxy;
 GRANT SELECT ON tq_graph.edges TO tq_proxy_ro;
+
+CREATE INDEX IF NOT EXISTS idx_edge_ids
+	ON tq_graph.edges (id);
+
+CREATE INDEX IF NOT EXISTS idx_edge_out
+	ON tq_graph.edges (vertex_out);
+
+CREATE INDEX IF NOT EXISTS idx_edge_in
+	ON tq_graph.edges (vertex_in);
 
 CREATE INDEX IF NOT EXISTS idx_edge_labels
 	ON tq_graph.edges (label);
