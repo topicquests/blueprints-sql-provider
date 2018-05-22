@@ -90,8 +90,42 @@ public final class SqlGraph implements Graph {
         edgePropertiesTableName = "edge_properties";
     }
     
+    /**
+     * Shortcut to adding a property to a vertex without fetching the entire vertex
+     * @param vertexId
+     * @param key
+     * @param value
+     */
+    public void addToVertexSetProperty(String vertexId, String key, String value) {
+        String sql = "SELECT value FROM tq_graph.vertex_properties  WHERE " +
+                "vertex_id = ? AND key = ? AND value = ?";
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
 
-    
+        	Object [] vals = new Object[3];
+        	vals[0] = vertexId;
+        	vals[1] = key;
+        	vals[2] = value;
+        	conn.executeSelect(sql, r, vals);
+            ResultSet rs = (ResultSet)r.getResultObject();
+            if (rs != null) {
+                    if (rs.next())
+                    	return;
+            }
+            conn.beginTransaction(r);
+            sql = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?)";
+            conn.executeSQL(sql, r, vals);
+            conn.endTransaction(r);
+	    	conn.closeConnection(r);
+
+        } catch (SQLException e) {
+                throw new SqlGraphException(e);
+        } 
+
+    }
 
  
 
