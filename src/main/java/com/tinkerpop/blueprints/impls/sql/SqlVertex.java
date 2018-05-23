@@ -47,9 +47,10 @@ public class SqlVertex extends SqlElement implements Vertex {
             String sql = "DELETE FROM tq_graph.vertices WHERE id = ?";
             conn.executeSQL(sql, r, getId());
             conn.endTransaction(r);
-            conn.closeConnection(r);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
     }
 

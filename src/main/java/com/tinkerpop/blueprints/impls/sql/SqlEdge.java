@@ -53,9 +53,10 @@ public class SqlEdge extends SqlElement implements Edge {
             String sql = "DELETE FROM tq_graph.edges WHERE id = ?";
             conn.executeSQL(sql, r, getId());
             conn.endTransaction(r);
-            conn.closeConnection(r);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
     }
 

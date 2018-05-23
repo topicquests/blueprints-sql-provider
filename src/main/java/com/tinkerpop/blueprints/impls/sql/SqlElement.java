@@ -60,7 +60,8 @@ abstract class SqlElement implements Element {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProperty(String key) {	//									e.g. vertex_properties
-        String sql = "SELECT value FROM " + getPropertiesTableName() + " WHERE " +
+       T result = null;
+    	String sql = "SELECT value FROM " + getPropertiesTableName() + " WHERE " +
             getPropertyTableElementIdName() + " = ? AND key = ?";
         	//e.g. vertex_id
         graph.getEnvironment().logDebug("SqlElement.getProperty- "+key+" "+sql);
@@ -94,17 +95,18 @@ abstract class SqlElement implements Element {
                 		valx.add(rs.getString("value"));
                 	}
                 }
-    	    	conn.closeConnection(r);
-    	        graph.getEnvironment().logDebug("SqlElement.getProperty+ "+key+" "+valx+" "+val);
     	        if (valx != null)
-                	return (T) valx;
+                	result = (T) valx;
                 else
-                	return (T) val;
+                	result =  (T) val;
             }
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+        	conn.closeConnection(r);
         }
-        return null;
+        graph.getEnvironment().logDebug("SqlElement.getProperty+ "+key+" "+result);
+        return result;
     }
     
     /**
@@ -133,16 +135,19 @@ abstract class SqlElement implements Element {
                     	result.add(rs.getString("value"));
                     }
             }
-	    	conn.closeConnection(r);
+	    	
 
         } catch (SQLException e) {
                 throw new SqlGraphException(e);
-        }    	
+        } finally {
+        	conn.closeConnection(r);
+        }
     	return result;
     }
 
     @Override
     public Set<String> getPropertyKeys() {
+    	Set<String> result = null;
         String sql =
             "SELECT key FROM " + getPropertiesTableName() + " WHERE " + getPropertyTableElementIdName() + " = ?";
 	    IPostgresConnection conn = null;
@@ -160,12 +165,13 @@ abstract class SqlElement implements Element {
                     	ret.add(rs.getString(1));
                     }
             }
-	    	conn.closeConnection(r);
-
-            return ret;
+            result = ret;
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+        	conn.closeConnection(r);
         }
+        return result;
     }
 
     public void updateProperty(String key, String newValue, String oldValue) {
@@ -184,10 +190,11 @@ abstract class SqlElement implements Element {
 			vals[2] = key;
 			vals[3] = oldValue;
 			conn.executeUpdate(sql, r, vals);
-	    	conn.closeConnection(r);
 
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
     }
     
@@ -232,9 +239,11 @@ abstract class SqlElement implements Element {
 	    	vals[2] = value;
 	    	conn.executeSQL(sql, r, vals);
 	    	conn.endTransaction(r);
-	    	conn.closeConnection(r);
+	    	
          } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+        	conn.closeConnection(r);
         }
     }
 
@@ -258,9 +267,10 @@ abstract class SqlElement implements Element {
 	    	vals[2] = value;
 	    	conn.executeSQL(sql, r, vals);
 	    	conn.endTransaction(r);
-	    	conn.closeConnection(r);
 	    } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+        	conn.closeConnection(r);
         }
     }
     
@@ -281,11 +291,12 @@ abstract class SqlElement implements Element {
 	    	vals[1] = key;
 	    	conn.executeSQL(sql, r, vals);
 	    	conn.endTransaction(r);
-	    	conn.closeConnection(r);
-            return value;
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+        	conn.closeConnection(r);
         }
+        return value;
     }
 
     @Override
@@ -345,9 +356,11 @@ abstract class SqlElement implements Element {
 	    	vals[1] = getId();
 	    	conn.executeSQL(sql, r, vals);
 	    	conn.endTransaction(r);
-	    	conn.closeConnection(r);
+	    	
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+        	conn.closeConnection(r);
         }
     }
     
@@ -356,6 +369,7 @@ abstract class SqlElement implements Element {
      * @return
      */
     public JSONObject getData() {
+    	//TODO this is really slow--should be put inside a connection
     	JSONObject result = new JSONObject();
     	result.put("id", getId());
     	result.put("label", getLabel());

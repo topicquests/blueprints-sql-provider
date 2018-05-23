@@ -119,11 +119,12 @@ public final class SqlGraph implements Graph {
             sql = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?)";
             conn.executeSQL(sql, r, vals);
             conn.endTransaction(r);
-	    	conn.closeConnection(r);
 
         } catch (SQLException e) {
                 throw new SqlGraphException(e);
-        } 
+        } finally {
+	    	conn.closeConnection(r);
+        }
 
     }
 
@@ -153,10 +154,11 @@ public final class SqlGraph implements Graph {
         	vals[1] = label;
         	conn.executeSQL(sql, r, vals);
         	conn.endTransaction(r);
-        	conn.closeConnection(r);
         	result = this.cache(new SqlVertex(this, id, label));
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
         return result;
     }
@@ -191,9 +193,10 @@ public final class SqlGraph implements Graph {
         			v = this.cache(new SqlVertex(this, idx, lbl));
         		}
         	}
-        	conn.closeConnection(r);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
         return v;
     }
@@ -210,12 +213,13 @@ public final class SqlGraph implements Graph {
         	String sql = "DELETE FROM vertices WHERE id = ?";
         	conn.executeSQL(sql, r, (String)vertex.getId());
         	conn.endTransaction(r);
-        	conn.closeConnection(r);
         	
             vertexCache.remove(vertex.getId());
             
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
     }
 
@@ -262,11 +266,12 @@ public final class SqlGraph implements Graph {
         	vals[3] = label;
         	conn.executeSQL(sql, r, vals);
         	conn.endTransaction(r);
-        	conn.closeConnection(r);
         	result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
         			(String)outVertex.getId(), label);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
         return result;
     }
@@ -296,10 +301,10 @@ public final class SqlGraph implements Graph {
         					rs.getString(4));
         		}
         	}
-        	conn.closeConnection(r);
-        	
         } catch (SQLException e) {
             throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
         }
         return result;
     }
@@ -316,10 +321,11 @@ public final class SqlGraph implements Graph {
             //we are going to ignore removing something that doesn't exist
             conn.executeSQL(sql, r, edge.getId());
             conn.endTransaction(r);
-            conn.closeConnection(r);
          } catch (SQLException e) {
             throw new SqlGraphException(e);
-        }
+         } finally {
+ 	    	conn.closeConnection(r);
+         }
     }
 
     @Override
