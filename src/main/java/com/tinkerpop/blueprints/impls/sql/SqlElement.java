@@ -64,20 +64,20 @@ abstract class SqlElement implements Element {
     	String sql = "SELECT value FROM " + getPropertiesTableName() + " WHERE " +
             getPropertyTableElementIdName() + " = ? AND key = ?";
         	//e.g. vertex_id
-        graph.getEnvironment().logDebug("SqlElement.getProperty- "+key+" "+sql);
+//        graph.getEnvironment().logDebug("SqlElement.getProperty- "+key+" "+sql);
       	IPostgresConnection conn = null;
 	    IResult r = new ResultPojo();
         try {
         	conn = provider.getConnection();
            	conn.setProxyRole(r);
-            graph.getEnvironment().logDebug("SqlElement.getProperty-1 "+conn);
+//            graph.getEnvironment().logDebug("SqlElement.getProperty-1 "+conn);
 
         	Object [] vals = new Object[2];
         	vals[0] = id;
         	vals[1] = key;
         	conn.executeSelect(sql, r, vals);
             ResultSet rs = (ResultSet)r.getResultObject();
-            graph.getEnvironment().logDebug("SqlElement.getProperty-2 "+key+" "+rs);
+//            graph.getEnvironment().logDebug("SqlElement.getProperty-2 "+key+" "+rs);
             if (rs != null) {
             	//MODIFY to return String or collection
             	//Required modification of property tables to
@@ -105,7 +105,7 @@ abstract class SqlElement implements Element {
         } finally {
         	conn.closeConnection(r);
         }
-        graph.getEnvironment().logDebug("SqlElement.getProperty+ "+key+" "+result);
+//        graph.getEnvironment().logDebug("SqlElement.getProperty+ "+key+" "+result);
         return result;
     }
     
