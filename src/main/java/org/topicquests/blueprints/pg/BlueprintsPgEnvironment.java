@@ -27,7 +27,8 @@ public class BlueprintsPgEnvironment extends RootEnvironment {
 		graphs = new HashMap<String, SqlGraph>();
 		String dbName = getStringProperty("GraphDatabaseName");
 		String schemaName = getStringProperty("GraphDatabaseSchema");
-        provider = new PostgresConnectionFactory(dbName, schemaName);
+        logDebug("BlueprintsPgEnvironment "+dbName+" "+schemaName);
+		provider = new PostgresConnectionFactory(dbName, schemaName);
 
 	}
 

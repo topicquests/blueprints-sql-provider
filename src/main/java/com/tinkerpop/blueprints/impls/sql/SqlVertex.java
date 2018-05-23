@@ -71,7 +71,7 @@ public class SqlVertex extends SqlElement implements Vertex {
     @Override
     public Iterable<Edge> getEdges(Direction direction, String... labels) {
         StringBuilder sql = new StringBuilder(
-            "SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM edges e, vertices v WHERE v.id = ? ");
+            "SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM tq_graph.edges e, vertices v WHERE v.id = ? ");
 
         switch (direction) {
         case IN:
@@ -84,7 +84,7 @@ public class SqlVertex extends SqlElement implements Vertex {
             sql.append("AND e.vertex_in = v.id ");
             addLabelConditions(sql, "e", labels);
             sql.append(
-                " UNION ALL SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM edges e, vertices v WHERE v.id = ? AND e.vertex_out = v.id ");
+                " UNION ALL SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM tq_graph.edges e, vertices v WHERE v.id = ? AND e.vertex_out = v.id ");
             break;
         }
 
@@ -125,7 +125,7 @@ public class SqlVertex extends SqlElement implements Vertex {
 
     @Override
     public Iterable<Vertex> getVertices(Direction direction, String... labels) {
-        StringBuilder sql = new StringBuilder("SELECT v.id, v.label FROM vertices v, edges e WHERE ");
+        StringBuilder sql = new StringBuilder("SELECT v.id, v.label FROM tq_graph.vertices v, edges e WHERE ");
 
         switch (direction) {
         case IN:
@@ -137,7 +137,7 @@ public class SqlVertex extends SqlElement implements Vertex {
         case BOTH:
             sql.append("e.vertex_in = ? AND e.vertex_out = v.id ");
             addLabelConditions(sql, "e", labels);
-            sql.append(" UNION ALL SELECT v.id, v.label FROM vertices v, edges e WHERE e.vertex_out = ? AND e.vertex_in = v.id ");
+            sql.append(" UNION ALL SELECT v.id, v.label FROM tq_graph.vertices v, edges e WHERE e.vertex_out = ? AND e.vertex_in = v.id ");
             break;
         }
 

@@ -84,10 +84,10 @@ public final class SqlGraph implements Graph {
     public SqlGraph(BlueprintsPgEnvironment env, PostgresConnectionFactory p) {
     	environment = env;
     	provider = p;
-    	verticesTableName = "vertices";
-        edgesTableName = "edges";
-        vertexPropertiesTableName = "vertex_properties";
-        edgePropertiesTableName = "edge_properties";
+    	verticesTableName = "tq_graph.vertices";
+        edgesTableName = "tq_graph.edges";
+        vertexPropertiesTableName = "tq_graph.vertex_properties";
+        edgePropertiesTableName = "tq_graph.edge_properties";
     }
     
     /**
