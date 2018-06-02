@@ -138,6 +138,7 @@ abstract class SqlElement implements Element {
 	    	
 
         } catch (SQLException e) {
+        	graph.getEnvironment().logError(e.getMessage(), e);
                 throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
@@ -167,7 +168,8 @@ abstract class SqlElement implements Element {
             }
             result = ret;
         } catch (SQLException e) {
-            throw new SqlGraphException(e);
+        	graph.getEnvironment().logError(e.getMessage(), e);
+           throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
         }
@@ -192,6 +194,7 @@ abstract class SqlElement implements Element {
 			conn.executeUpdate(sql, r, vals);
 
         } catch (SQLException e) {
+        	graph.getEnvironment().logError(e.getMessage(), e);
             throw new SqlGraphException(e);
         } finally {
 	    	conn.closeConnection(r);
@@ -223,8 +226,6 @@ abstract class SqlElement implements Element {
         if (value == null) {
             throw new IllegalArgumentException("null value not allowed");
         }
-        String sql = "INSERT INTO " + getPropertiesTableName() + " (" + getPropertyTableElementIdName() +
-            ", key, value) VALUES (?, ?, ?)";
 
 	    IPostgresConnection conn = null;
 	    IResult r = new ResultPojo();
@@ -233,20 +234,27 @@ abstract class SqlElement implements Element {
 	       	conn.setProxyRole(r);
 
 	    	conn.beginTransaction(r);
-	    	Object [] vals = new Object[3];
-	    	vals[0] = id;
-	    	vals[1] = key;
-	    	vals[2] = value;
-	    	conn.executeSQL(sql, r, vals);
+	    	setProperty(conn, key, value, r);
 	    	conn.endTransaction(r);
 	    	
-         } catch (SQLException e) {
+         } catch (Exception e) {
+         	graph.getEnvironment().logError(e.getMessage(), e);
+    	 
             throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
         }
     }
-
+    
+    public void setProperty(IPostgresConnection conn, String key, Object value, IResult r) throws Exception {
+        String sql = "INSERT INTO " + getPropertiesTableName() + " (" + getPropertyTableElementIdName() +
+                ", key, value) VALUES (?, ?, ?)";
+    	Object [] vals = new Object[3];
+    	vals[0] = id;
+    	vals[1] = key;
+    	vals[2] = value;
+    	conn.executeSQL(sql, r, vals);
+    }
     /**
      * Delete a specific key/value pair
      * @param key
@@ -268,6 +276,7 @@ abstract class SqlElement implements Element {
 	    	conn.executeSQL(sql, r, vals);
 	    	conn.endTransaction(r);
 	    } catch (SQLException e) {
+        	graph.getEnvironment().logError(e.getMessage(), e);
             throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
@@ -292,7 +301,8 @@ abstract class SqlElement implements Element {
 	    	conn.executeSQL(sql, r, vals);
 	    	conn.endTransaction(r);
         } catch (SQLException e) {
-            throw new SqlGraphException(e);
+        	graph.getEnvironment().logError(e.getMessage(), e);
+           throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
         }

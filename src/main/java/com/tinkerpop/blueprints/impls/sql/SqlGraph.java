@@ -97,37 +97,44 @@ public final class SqlGraph implements Graph {
      * @param value
      */
     public void addToVertexSetProperty(String vertexId, String key, String value) {
-        String sql = "SELECT value FROM tq_graph.vertex_properties  WHERE " +
-                "vertex_id = ? AND key = ? AND value = ?";
 	    IPostgresConnection conn = null;
 	    IResult r = new ResultPojo();
         try {
         	conn = provider.getConnection();
            	conn.setProxyRole(r);
-
-        	Object [] vals = new Object[3];
-        	vals[0] = vertexId;
-        	vals[1] = key;
-        	vals[2] = value;
-        	conn.executeSelect(sql, r, vals);
-            ResultSet rs = (ResultSet)r.getResultObject();
-            if (rs != null) {
-                    if (rs.next())
-                    	return;
-            }
             conn.beginTransaction(r);
-            sql = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?)";
-            conn.executeSQL(sql, r, vals);
+        	addToVertexSetProperty(conn, vertexId, key, value, r);
             conn.endTransaction(r);
-
-        } catch (SQLException e) {
+        } catch (Exception e) {
+        	environment.logError(e.getMessage(), e);
                 throw new SqlGraphException(e);
         } finally {
 	    	conn.closeConnection(r);
         }
-
     }
 
+    public void addToVertexSetProperty(IPostgresConnection conn, String vertexId, 
+    		String key, String value, IResult r) throws Exception {
+       /* String sql = "SELECT value FROM tq_graph.vertex_properties  WHERE " +
+                "vertex_id = ? AND key = ? AND value = ?";
+    	Object [] vals = new Object[3];
+    	vals[0] = vertexId;
+    	vals[1] = key;
+    	vals[2] = value;
+    	conn.executeSelect(sql, r, vals);
+        ResultSet rs = (ResultSet)r.getResultObject();
+        if (rs != null) {
+                if (rs.next())
+                	return;
+        }*/
+    	Object [] vals = new Object[3];
+    	vals[0] = vertexId;
+    	vals[1] = key;
+    	vals[2] = value;
+        String sql = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
+        conn.executeSQL(sql, r, vals);
+    }
+    	 
  
 
     @Override
@@ -148,19 +155,26 @@ public final class SqlGraph implements Graph {
         	conn = provider.getConnection();
            	conn.setProxyRole(r);
         	conn.beginTransaction(r);
-        	String sql = "INSERT INTO tq_graph.vertices (id, label) VALUES (?, ?)";
-        	Object [] vals = new Object[2];
-        	vals[0] = id;
-        	vals[1] = label;
-        	conn.executeSQL(sql, r, vals);
+        	result = addVertex(conn, id, label, r);
         	conn.endTransaction(r);
-        	result = this.cache(new SqlVertex(this, id, label));
-        } catch (SQLException e) {
+        } catch (Exception e) {
+        	environment.logError(e.getMessage(), e);
             throw new SqlGraphException(e);
         } finally {
 	    	conn.closeConnection(r);
         }
         return result;
+    }
+    
+    public Vertex addVertex(IPostgresConnection conn, String id, String label, IResult r) throws Exception {
+    	Vertex result = null;
+    	String sql = "INSERT INTO tq_graph.vertices (id, label) VALUES (?, ?)";
+    	Object [] vals = new Object[2];
+    	vals[0] = id;
+    	vals[1] = label;
+       	conn.executeSQL(sql, r, vals);
+        result = this.cache(new SqlVertex(this, id, label));
+	    return result;
     }
 
     @Override
