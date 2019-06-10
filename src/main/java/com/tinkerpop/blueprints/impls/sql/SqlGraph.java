@@ -91,6 +91,55 @@ public final class SqlGraph implements Graph {
     }
     
     /**
+     * Return a boolean <code>true</code> if a vertext identified by 
+     * <code>vertexId</code>  exists
+     * @param conn  caller responsible for closing
+     * @param vertexId
+     * @return
+     */
+    public boolean vertexExists(IPostgresConnection conn, String vertexId) {
+	    String sql = "SELECT id FROM tq_graph.vertices WHERE id=?";
+        try {
+        	IResult r = conn.executeSelect(sql, vertexId);
+        	ResultSet rs = (ResultSet)r.getResultObject();
+        	if (rs != null && rs.next())
+        		return true;
+        	
+        } catch (Exception e) {
+        	environment.logError(e.getMessage(), e);
+        }
+        return false;
+    }
+    
+    /**
+     * Simple property value fetch
+     * @param conn
+     * @param id
+     * @param key
+     * @return
+     */
+    public String getVertexProperty(IPostgresConnection conn, String id, String key) {
+    	String result = null;
+    	String sql = "SELECT value FROM tq_graph.vertex_properties WHERE vertex_id = ? AND key = ?";
+    	Object [] vals = new Object [2];
+    	vals[0] = id;
+    	vals[1] = key;
+        try {
+        	IResult r = conn.executeSelect(sql, vals);
+        	ResultSet rs = (ResultSet)r.getResultObject();
+        	if (rs != null) {
+        		if (rs.next())
+        			result = rs.getString(1);
+        	}
+        	
+        } catch (Exception e) {
+        	environment.logError(e.getMessage(), e);
+        }
+   	
+    	
+    	return result;
+    }
+    /**
      * Shortcut to adding a property to a vertex without fetching the entire vertex
      * @param vertexId
      * @param key

@@ -4,7 +4,7 @@
 
     <groupId>org.topicquests</groupId>
     <artifactId>blueprints-sql-provider</artifactId>
-    <version>0.10.0-SNAPSHOT</version>
+    <version>0.11.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>blueprints-sql-provider</name>
@@ -37,17 +37,7 @@
         <dependency>
             <groupId>org.topicquests</groupId>
             <artifactId>tq-support</artifactId>
-            <version>1.7.3-SNAPSHOT</version>
-        </dependency>
-    	<dependency>
-			<groupId>net.minidev</groupId>
-			<artifactId>json-smart</artifactId>
-			<version>2.2.1</version>
-		</dependency>
-	    <dependency>
-            <groupId>net.minidev</groupId>
-            <artifactId>accessors-smart</artifactId>
-            <version>1.1</version>
+            <version>1.8.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
@@ -58,7 +48,7 @@
         <dependency>
         	<groupId>org.topicquests</groupId>
         	<artifactId>tqks-postgresql-provider</artifactId>
-        	<version>0.9.0-SNAPSHOT</version>
+        	<version>0.10.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
@@ -73,6 +63,15 @@
         </pluginManagement>
         <plugins>
             <plugin>
+         <!-- required for jdk > 1.8 
+       <plugin>
+       		<groupId>org.apache.maven.plugins</groupId>
+       		<artifactId>maven-compiler-plugin</artifactId>
+       		<configuration>
+           		<source>1.6</source>
+           		<target>1.6</target>
+       		</configuration>
+		</plugin>-->
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <source>1.7</source>
