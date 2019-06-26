@@ -308,6 +308,16 @@ public final class SqlGraph implements Graph {
         return query().has(key, value).vertices();
     }
 
+    public SqlEdge addEdge(IPostgresConnection conn, Object id, Vertex outVertex, Vertex inVertex, String label) throws Exception {
+        if (label == null) {
+            throw new IllegalArgumentException("null label");
+        }
+    	SqlEdge result = null;
+    	result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
+    			(String)outVertex.getId(), label);   	
+    	return result;
+    }
+    
     @Override
     public SqlEdge addEdge(Object id, Vertex outVertex, Vertex inVertex, String label) {
         if (label == null) {
