@@ -164,18 +164,6 @@ public final class SqlGraph implements Graph {
 
     public void addToVertexSetProperty(IPostgresConnection conn, String vertexId, 
     		String key, String value, IResult r) throws Exception {
-       /* String sql = "SELECT value FROM tq_graph.vertex_properties  WHERE " +
-                "vertex_id = ? AND key = ? AND value = ?";
-    	Object [] vals = new Object[3];
-    	vals[0] = vertexId;
-    	vals[1] = key;
-    	vals[2] = value;
-    	conn.executeSelect(sql, r, vals);
-        ResultSet rs = (ResultSet)r.getResultObject();
-        if (rs != null) {
-                if (rs.next())
-                	return;
-        }*/
     	Object [] vals = new Object[3];
     	vals[0] = vertexId;
     	vals[1] = key;
@@ -183,7 +171,19 @@ public final class SqlGraph implements Graph {
         String sql = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
         conn.executeSQL(sql, r, vals);
     }
-    	 
+
+    public void addToEdgeSetProperty(IPostgresConnection conn, String edgeId, 
+    		String key, String value, IResult r) throws Exception {
+    	conn.beginTransaction(r);
+    	Object [] vals = new Object[3];
+    	vals[0] = edgeId;
+    	vals[1] = key;
+    	vals[2] = value;
+        String sql = "INSERT INTO tq_graph.edge_properties (edge_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
+        conn.executeSQL(sql, r, vals);
+        conn.endTransaction(r);
+    }
+
  
 
     @Override
@@ -308,12 +308,21 @@ public final class SqlGraph implements Graph {
         return query().has(key, value).vertices();
     }
 
-    public SqlEdge addEdge(IPostgresConnection conn, Object id, Vertex outVertex, Vertex inVertex, String label) throws Exception {
+    public SqlEdge addEdge(IPostgresConnection conn, Object id, Vertex outVertex, Vertex inVertex, 
+    		String label, IResult r) throws Exception {
         if (label == null) {
             throw new IllegalArgumentException("null label");
         }
-    	SqlEdge result = null;
-    	result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
+    	conn.beginTransaction(r);
+    	String sql = "INSERT INTO tq_graph.edges (id, vertex_in, vertex_out, label) VALUES (?, ?, ?, ?)";
+    	Object [] vals = new Object[4];
+    	vals[0] = id;
+    	vals[1] = inVertex.getId();
+    	vals[2] = outVertex.getId();
+    	vals[3] = label;
+    	conn.executeSQL(sql, r, vals);
+    	conn.endTransaction(r);
+    	SqlEdge result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
     			(String)outVertex.getId(), label);   	
     	return result;
     }
