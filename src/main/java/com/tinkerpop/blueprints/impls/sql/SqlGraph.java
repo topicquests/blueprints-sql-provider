@@ -357,6 +357,29 @@ public final class SqlGraph implements Graph {
         }
         return result;
     }
+    
+    /**
+     * Return <code>true</code> if the given edge already exists
+     * @param conn
+     * @param inVertexId
+     * @param outVertexId
+     * @param relationLabel
+     * @return
+     * @throws Exception
+     */
+    public boolean edgeExists(IPostgresConnection conn, String inVertexId, String outVertexId, String relationLabel)
+    				throws Exception {
+    	String sql = "SELECT id FROM tq_graph.edges WHERE label ='"+relationLabel+"' "+
+    				"AND vertex_in='"+inVertexId+"' AND vertex_out='"+outVertexId+"'";
+    	IResult r = new ResultPojo();
+    	conn.setProxyRole(r);
+    	Object [] obj = null;
+    	conn.executeSelect(sql, r, obj);
+    	ResultSet rs = (ResultSet)r.getResultObject();
+    	if (rs != null && rs.next())
+    		return true;
+    	return false; // default
+    }
 
     @Override
     public SqlEdge getEdge(Object id) {
