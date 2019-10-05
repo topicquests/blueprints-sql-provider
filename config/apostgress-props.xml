@@ -1,11 +1,11 @@
 <?xml version="1.0" ?>
 
 <properties>
-	<parameter name="GraphDatabaseName" value = "testgraph" />
+	<parameter name="GraphDatabaseName" value = "word_grams" />
 	<parameter name="GraphDatabaseSchema" value = "tq_graph" />
 
 	<!-- URL for the server -->
-	<parameter name="DatabaseURL" value = "localhost" />
+	<parameter name="DatabaseURL" value = "192.168.0.7" />
 	<parameter name="DatabasePort" value = "5432" />
 	<parameter name="DbUser" value = "tq_admin" />
 	<parameter name="DbPwd" value = "tq-admin-pwd" />

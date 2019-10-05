@@ -19,7 +19,11 @@ public class PgsqlDevTestMain {
 		//new PropertyTest();
 		//new QueryTest();
 		//new PropertyTest_2();
-		new NewTest();
+		//new NewTest();
+		//new NounVertexTest();
+		//new VertexEdgeTest();
+		//new FirstDupEdgeTest();
+		new FirstDSLTest();
 	}
 
 }

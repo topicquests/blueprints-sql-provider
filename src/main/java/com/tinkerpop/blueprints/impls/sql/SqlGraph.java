@@ -321,7 +321,9 @@ public final class SqlGraph implements Graph {
     	vals[2] = outVertexId;
     	vals[3] = label;
     	conn.executeSQL(sql, r, vals);
-    	conn.endTransaction(r);
+    	if (r.hasError()) {
+    		return null;
+    	}
     	SqlEdge result = new SqlEdge(this, (String) id, inVertexId,
     			outVertexId, label);   	
     	return result;
@@ -347,9 +349,11 @@ public final class SqlGraph implements Graph {
         	vals[2] = outVertex.getId();
         	vals[3] = label;
         	conn.executeSQL(sql, r, vals);
+        	if (!r.hasError()) {
+            	result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
+            			(String)outVertex.getId(), label);
+        	}
         	conn.endTransaction(r);
-        	result = new SqlEdge(this, (String) id, (String)inVertex.getId(),
-        			(String)outVertex.getId(), label);
         } catch (SQLException e) {
             throw new SqlGraphException(e);
         } finally {

@@ -33,6 +33,7 @@ public class BlueprintsVertexIterable<T> implements CloseableIterable<T> {
 	 */
 	@Override
 	public Iterator<T> iterator() {
+		System.out.println("BlptVertItr "+rs);
         try {
         	if (rs != null)
         		rs.beforeFirst();

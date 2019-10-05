@@ -18,6 +18,7 @@ import com.tinkerpop.blueprints.impls.sql.SqlGraph;
 public class BlueprintsPgEnvironment extends RootEnvironment {
 	private Map<String, SqlGraph> graphs;
 	private PostgresConnectionFactory provider;
+	private GraphDSL dsl;
 
 	/**
 	 * 
@@ -29,6 +30,7 @@ public class BlueprintsPgEnvironment extends RootEnvironment {
 		String schemaName = getStringProperty("GraphDatabaseSchema");
         logDebug("BlueprintsPgEnvironment "+dbName+" "+schemaName);
 		provider = new PostgresConnectionFactory(dbName, schemaName);
+		dsl = new GraphDSL(this);
 
 	}
 
@@ -50,12 +52,20 @@ public class BlueprintsPgEnvironment extends RootEnvironment {
 	}
 	
 	/**
+	 * Return the DSL
+	 * @return
+	 */
+	public GraphDSL getDSL() {
+		return dsl;
+	}
+	
+	/**
 	 * Dangerous: Empty the contents of a graph in the database
 	 * @param graphName
 	 */
-	public void clearGraph(String graphName) {
+	//public void clearGraph(String graphName) {
 		//TODO
-	}
+	//}
 	
 	public void shutDown() {
 		Iterator<String>itr = graphs.keySet().iterator();

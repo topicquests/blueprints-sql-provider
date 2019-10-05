@@ -72,7 +72,7 @@ public class SqlVertex extends SqlElement implements Vertex {
     @Override
     public Iterable<Edge> getEdges(Direction direction, String... labels) {
         StringBuilder sql = new StringBuilder(
-            "SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM tq_graph.edges e, vertices v WHERE v.id = ? ");
+            "SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM tq_graph.edges e, tq_graph.vertices v WHERE v.id = ? ");
 
         switch (direction) {
         case IN:
@@ -85,7 +85,7 @@ public class SqlVertex extends SqlElement implements Vertex {
             sql.append("AND e.vertex_in = v.id ");
             addLabelConditions(sql, "e", labels);
             sql.append(
-                " UNION ALL SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM tq_graph.edges e, vertices v WHERE v.id = ? AND e.vertex_out = v.id ");
+                " UNION ALL SELECT e.id, e.vertex_in, e.vertex_out, e.label FROM tq_graph.edges e, tq_graph.vertices v WHERE v.id = ? AND e.vertex_out = v.id ");
             break;
         }
 
@@ -126,7 +126,7 @@ public class SqlVertex extends SqlElement implements Vertex {
 
     @Override
     public Iterable<Vertex> getVertices(Direction direction, String... labels) {
-        StringBuilder sql = new StringBuilder("SELECT v.id, v.label FROM tq_graph.vertices v, edges e WHERE ");
+        StringBuilder sql = new StringBuilder("SELECT v.id, v.label FROM tq_graph.vertices v, tq_graph.edges e WHERE ");
 
         switch (direction) {
         case IN:
@@ -138,12 +138,12 @@ public class SqlVertex extends SqlElement implements Vertex {
         case BOTH:
             sql.append("e.vertex_in = ? AND e.vertex_out = v.id ");
             addLabelConditions(sql, "e", labels);
-            sql.append(" UNION ALL SELECT v.id, v.label FROM tq_graph.vertices v, edges e WHERE e.vertex_out = ? AND e.vertex_in = v.id ");
+            sql.append(" UNION ALL SELECT v.id, v.label FROM tq_graph.vertices v, tq_graph.edges e WHERE e.vertex_out = ? AND e.vertex_in = v.id ");
             break;
         }
 
         addLabelConditions(sql, "e", labels);
-System.out.println("SqlVertex.getVertices "+sql.toString());
+System.out.println("SqlVertex.getVertices- "+sql.toString());
 		IPostgresConnection conn = null;
 		IResult r = new ResultPojo();
 		try {
@@ -168,6 +168,7 @@ System.out.println("SqlVertex.getVertices "+sql.toString());
             for (int i = 0; i < labels.length; ++i) {
             	vals[i + inc] = labels[i];
             }
+System.out.println("SqlVertex.getVertices-1 "+vals);
             conn.executeSelect(sql.toString(), r, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, vals);
         	
             ResultSet rs = (ResultSet)r.getResultObject();
