@@ -23,7 +23,8 @@ public class PgsqlDevTestMain {
 		//new NounVertexTest();
 		//new VertexEdgeTest();
 		//new FirstDupEdgeTest();
-		new FirstDSLTest();
+		//new FirstDSLTest();
+		new FindEdgeTest();
 	}
 
 }

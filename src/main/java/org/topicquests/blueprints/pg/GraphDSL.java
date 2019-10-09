@@ -12,6 +12,7 @@ import org.topicquests.pg.api.IPostgresConnection;
 import org.topicquests.support.ResultPojo;
 import org.topicquests.support.api.IResult;
 
+import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.impls.sql.SqlGraph;
 
 import net.minidev.json.JSONObject;
@@ -33,6 +34,43 @@ public class GraphDSL {
 		graph = environment.getGraph("wordgrams");
 		factory = graph.getProvider();
 	}
+	
+	/**
+	 * Find an edge by its primary parameters
+	 * @param inVertexId
+	 * @param outVertexId
+	 * @param label
+	 * @return can return <code>null</code>
+	 * @throws Exception
+	 */
+	public Edge findEdgeByLabelAndVertices(String inVertexId,
+										   String outVertexId,
+										   String label) throws Exception {
+		Edge result = null;
+		String sql = "SELECT id FROM tq_graph.edges WHERE vertex_in = ? "+
+				     "AND vertex_out=? AND label=?";
+		Object [] o = new Object[3];
+		o[0] = inVertexId;
+		o[1] = outVertexId;
+		o[2] = label;
+		IResult r = new ResultPojo();
+		IPostgresConnection conn = null;
+		try {
+			conn = runQuery(sql, r, o);
+			ResultSet rs = (ResultSet)r.getResultObject();
+			System.out.println("AAA-- "+r.getErrorString());
+			if (rs != null) {
+				if (rs.next()) {
+					String eid = rs.getString("id");
+					result = graph.getEdge(eid);
+				}
+			}		
+		} finally {
+			if (conn != null)
+				conn.closeConnection(r);
+		}
+		return result;
+	}
 
 	/**
 	 * List the OUT vertices for a vertex with the given ID <code>vID</code>
@@ -44,25 +82,27 @@ public class GraphDSL {
 	 */
 	public List<JSONObject> listOutVertices(String vID, String eLabel) throws Exception {
 		List<JSONObject> result = new ArrayList<JSONObject>();
-		String sqle = "SELECT id, vertex_out, vertex_in, label FROM tq_graph.edges WHERE vertex_in=? AND label=?";
+		String sqle = "SELECT vertex_outFROM tq_graph.edges WHERE vertex_in=? AND label=?";
 		Object [] o = new Object[2];
 		o[0]= vID;
 		o[1]= eLabel;
 		IResult r = new ResultPojo();
-		IPostgresConnection conn = runQuery(sqle, r, o);
-		ResultSet rs = (ResultSet)r.getResultObject();
-		System.out.println("AAA-- "+r.getErrorString());
-		String eid, vout, vin, lab;
-		if (rs != null) {
-			while (rs.next()) {
-				eid = rs.getString("id");
-				vout = rs.getString("vertex_out");
-				vin = rs.getString("vertex_in");
-				lab = rs.getString("label");
-				result.add(getVertex(vout));		
+		IPostgresConnection conn = null;
+		try {
+			conn = runQuery(sqle, r, o);
+			ResultSet rs = (ResultSet)r.getResultObject();
+			System.out.println("AAA-- "+r.getErrorString());
+			if (rs != null) {
+				String vout;
+				while (rs.next()) {
+					vout = rs.getString("vertex_out");
+					result.add(getVertex(vout));		
+				}
 			}
+		} finally {
+			if (conn != null)
+				conn.closeConnection(r);
 		}
-		conn.closeConnection(r);
 		return result;
 	}
 	
@@ -76,25 +116,27 @@ public class GraphDSL {
 	 */
 	public List<JSONObject> listInVertices(String vID, String eLabel) throws Exception {
 		List<JSONObject> result = new ArrayList<JSONObject>();
-		String sqle = "SELECT id, vertex_out, vertex_in, label FROM tq_graph.edges WHERE vertex_out=? AND label=?";
+		String sqle = "SELECT vertex_in FROM tq_graph.edges WHERE vertex_out=? AND label=?";
 		Object [] o = new Object[2];
 		o[0]= vID;
 		o[1]= eLabel;
 		IResult r = new ResultPojo();
-		IPostgresConnection conn = runQuery(sqle, r, o);
-		ResultSet rs = (ResultSet)r.getResultObject();
-		System.out.println("AAA-- "+r.getErrorString());
-		String eid, vout, vin, lab;
-		if (rs != null) {
-			while (rs.next()) {
-				eid = rs.getString("id");
-				vout = rs.getString("vertex_out");
-				vin = rs.getString("vertex_in");
-				lab = rs.getString("label");
-				result.add(getVertex(vin));
+		IPostgresConnection conn = null;
+		try {
+			conn = runQuery(sqle, r, o);
+			ResultSet rs = (ResultSet)r.getResultObject();
+			System.out.println("AAA-- "+r.getErrorString());
+			if (rs != null) {
+				String vin;
+				while (rs.next()) {
+					vin = rs.getString("vertex_in");
+					result.add(getVertex(vin));
+				}
 			}
+		} finally {
+			if (conn != null)
+				conn.closeConnection(r);
 		}
-		conn.closeConnection(r);
 		return result;
 	}
 	
@@ -104,14 +146,19 @@ public class GraphDSL {
 		Object [] o = new Object[1];
 		o[0]=vID;
 		IResult r = new ResultPojo();
-		IPostgresConnection conn = runQuery(sql, r, o);
-		ResultSet rs = (ResultSet)r.getResultObject();
-		if (rs != null && rs.next()) {
-			result = new JSONObject();
-			result.put("id", vID);
-			result.put("label", rs.getString("label"));
+		IPostgresConnection conn = null;
+		try {
+			conn = runQuery(sql, r, o);
+			ResultSet rs = (ResultSet)r.getResultObject();
+			if (rs != null && rs.next()) {
+				result = new JSONObject();
+				result.put("id", vID);
+				result.put("label", rs.getString("label"));
+			}
+		} finally {
+			if (conn != null)
+				conn.closeConnection(r);
 		}
-		conn.closeConnection(r);
 		return result;
 	}
 	
