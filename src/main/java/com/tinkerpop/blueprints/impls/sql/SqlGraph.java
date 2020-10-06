@@ -145,8 +145,9 @@ public final class SqlGraph implements Graph {
      * @param key
      * @param value
      */
-    public void addToVertexSetProperty(String vertexId, String key, String value) {
-	    IPostgresConnection conn = null;
+    public IResult addToVertexSetProperty(String vertexId, String key, String value) {
+	    IResult result = new ResultPojo();
+    	IPostgresConnection conn = null;
 	    IResult r = new ResultPojo();
         try {
         	conn = provider.getConnection();
@@ -155,11 +156,13 @@ public final class SqlGraph implements Graph {
         	addToVertexSetProperty(conn, vertexId, key, value, r);
             conn.endTransaction(r);
         } catch (Exception e) {
+        	result.addErrorString(e.getMessage());
         	environment.logError(e.getMessage(), e);
-                throw new SqlGraphException(e);
+            //    throw new SqlGraphException(e);
         } finally {
 	    	conn.closeConnection(r);
         }
+        return result;
     }
 
     public void addToVertexSetProperty(IPostgresConnection conn, String vertexId, 
@@ -168,8 +171,17 @@ public final class SqlGraph implements Graph {
     	vals[0] = vertexId;
     	vals[1] = key;
     	vals[2] = value;
-        String sql = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
-        conn.executeSQL(sql, r, vals);
+    	String sql = "SELECT * FROM tq_graph.vertex_properties where vertex_id=? AND key=? AND value=?";
+        String sql1 = "INSERT INTO tq_graph.vertex_properties (vertex_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
+        
+        conn.executeSelect(sql, r, vals);
+        ResultSet rs = (ResultSet)r.getResultObject();
+        environment.logDebug("SqlGraph.addToVertexSetProperty "+vertexId+" "+key+" "+value+" "+rs);
+        if (rs == null || !rs.next()) {
+           environment.logDebug("SqlGraph.addToVertexSetProperty-1 ");
+           conn.executeSQL(sql1, r, vals);
+        }
+
     }
 
     public void addToEdgeSetProperty(IPostgresConnection conn, String edgeId, 
@@ -179,8 +191,12 @@ public final class SqlGraph implements Graph {
     	vals[0] = edgeId;
     	vals[1] = key;
     	vals[2] = value;
-        String sql = "INSERT INTO tq_graph.edge_properties (edge_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
-        conn.executeSQL(sql, r, vals);
+    	String sql = "SELECT * FROM tq_graph.edge_properties where edge_id=? AND key=? AND value=?";
+        String sql1 = "INSERT INTO tq_graph.edge_properties (edge_id, key, value) VALUES (?, ?, ?) ON CONFLICT DO NOTHING";
+        conn.executeSelect(sql, r, vals);
+        ResultSet rs = (ResultSet)r.getResultObject();
+        if (rs == null || !rs.next())
+            conn.executeSQL(sql1, r, vals);
         conn.endTransaction(r);
     }
 
