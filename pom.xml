@@ -4,7 +4,7 @@
 
     <groupId>org.topicquests</groupId>
     <artifactId>blueprints-sql-provider</artifactId>
-    <version>0.15.1-SNAPSHOT</version>
+    <version>0.16.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>blueprints-sql-provider</name>
@@ -37,7 +37,7 @@
         <dependency>
             <groupId>org.topicquests</groupId>
             <artifactId>tq-support</artifactId>
-            <version>1.8.0-SNAPSHOT</version>
+            <version>1.9.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
@@ -48,7 +48,7 @@
         <dependency>
         	<groupId>org.topicquests</groupId>
         	<artifactId>tqks-postgresql-provider</artifactId>
-        	<version>0.10.0-SNAPSHOT</version>
+        	<version>0.11.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
