@@ -213,6 +213,12 @@ abstract class SqlElement implements Element {
     		setProperty(key, value);
     }
 
+    public void addToSetProperty(IPostgresConnection conn, String key, String value, IResult r) throws Exception {
+    	List<String>l = this.listProperty(key);
+    	if (l.isEmpty() || !l.contains(value))
+    		this.setProperty(conn, key, value, r);
+    }
+    
     @Override
     public void setProperty(String key, Object value) {
         if (key == null || key.isEmpty()) {
