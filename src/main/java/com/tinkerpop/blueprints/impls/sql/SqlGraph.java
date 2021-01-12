@@ -244,6 +244,23 @@ public final class SqlGraph implements Graph {
 
     @Override
     public SqlVertex getVertex(Object id) {
+
+    	SqlVertex v = null;
+	    IPostgresConnection conn = null;
+	    IResult r = new ResultPojo();
+        try {
+        	conn = provider.getConnection();
+           	conn.setProxyRole(r);
+           	v = getVertex(id, conn, r);
+        } catch (Exception e) {
+            throw new SqlGraphException(e);
+        } finally {
+	    	conn.closeConnection(r);
+        }
+        return v;
+    }
+    
+    public SqlVertex getVertex(Object id, IPostgresConnection conn, IResult r) throws Exception {
         String realId = getId(id);
 
         if (realId == null) {
@@ -255,30 +272,22 @@ public final class SqlGraph implements Graph {
         SqlVertex v = ref == null ? null : ref.get();
         if (v != null) {
             return v;
-        }
-
-	    IPostgresConnection conn = null;
-	    IResult r = new ResultPojo();
-        try {
-        	conn = provider.getConnection();
-           	conn.setProxyRole(r);
-        	String sql = "SELECT id, label FROM tq_graph.vertices WHERE id = ?";
-        	conn.executeSelect(sql, r, (String)id);
-        	ResultSet rs = (ResultSet)r.getResultObject();
-        	if (rs != null) {
-        		if (rs.next()) {
-        			String idx = rs.getString("id");
-        			String lbl = rs.getString("label");
-        			v = this.cache(new SqlVertex(this, idx, lbl));
-        		}
-        	}
-        } catch (SQLException e) {
-            throw new SqlGraphException(e);
-        } finally {
-	    	conn.closeConnection(r);
-        }
+        }	
+        
+       	String sql = "SELECT id, label FROM tq_graph.vertices WHERE id = ?";
+    	conn.executeSelect(sql, r, (String)id);
+    	ResultSet rs = (ResultSet)r.getResultObject();
+    	if (rs != null) {
+    		if (rs.next()) {
+    			String idx = rs.getString("id");
+    			String lbl = rs.getString("label");
+    			v = this.cache(new SqlVertex(this, idx, lbl));
+    		}
+    	}
         return v;
+
     }
+ 
 
     @Override
     public void removeVertex(Vertex vertex) {
@@ -338,6 +347,7 @@ public final class SqlGraph implements Graph {
     	vals[3] = label;
     	conn.executeSQL(sql, r, vals);
     	if (r.hasError()) {
+    		environment.logError("SqlGraph.addEdge "+r.getErrorString(), null);
     		return null;
     	}
     	SqlEdge result = new SqlEdge(this, (String) id, inVertexId,
