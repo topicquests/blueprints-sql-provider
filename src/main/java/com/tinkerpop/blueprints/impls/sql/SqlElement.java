@@ -373,17 +373,24 @@ abstract class SqlElement implements Element {
            	conn.setProxyRole(r);
 
 	    	conn.beginTransaction(r);
-	    	Object [] vals = new Object[2];
-	    	vals[0] = label;
-	    	vals[1] = getId();
-	    	conn.executeSQL(sql, r, vals);
+	    	setLabel(conn, label, r);
 	    	conn.endTransaction(r);
 	    	
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
         }
+    }
+    
+    public void setLabel(IPostgresConnection conn, String label, IResult r) throws Exception {
+    	this.label = label;
+        String sql = "UPDATE " + getTableName() + " SET label" +
+                " = ? WHERE id = ?";
+    	Object [] vals = new Object[2];
+    	vals[0] = label;
+    	vals[1] = getId();
+    	conn.executeSQL(sql, r, vals);
     }
     
     /**
