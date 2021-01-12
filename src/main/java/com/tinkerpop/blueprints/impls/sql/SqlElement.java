@@ -177,30 +177,31 @@ abstract class SqlElement implements Element {
     }
 
     public void updateProperty(String key, String newValue, String oldValue) {
-    	String sql = "UPDATE " + getPropertiesTableName() + " SET value" +
-                " = ? WHERE " +
-                getPropertyTableElementIdName() + " = ? AND key = ? AND value = ?";
 	    IPostgresConnection conn = null;
 	    IResult r = new ResultPojo();
         try {
         	conn = provider.getConnection();
            	conn.setProxyRole(r);
+           	updateProperty(conn, key, newValue, oldValue, r);
 
-        	Object [] vals = new Object[4];     		
-			vals[0] = newValue;
-			vals[1] = id;
-			vals[2] = key;
-			vals[3] = oldValue;
-			conn.executeUpdate(sql, r, vals);
-
-        } catch (SQLException e) {
+        } catch (Exception e) {
         	graph.getEnvironment().logError(e.getMessage(), e);
             throw new SqlGraphException(e);
         } finally {
 	    	conn.closeConnection(r);
         }
     }
-    
+    public void updateProperty( IPostgresConnection conn, String key, String newValue, String oldValue, IResult r) throws Exception {
+    	String sql = "UPDATE " + getPropertiesTableName() + " SET value" +
+                " = ? WHERE " +
+                getPropertyTableElementIdName() + " = ? AND key = ? AND value = ?";
+    	Object [] vals = new Object[4];     		
+		vals[0] = newValue;
+		vals[1] = id;
+		vals[2] = key;
+		vals[3] = oldValue;
+		conn.executeUpdate(sql, r, vals);   
+    }
     /**
      * Builds non-redundant lists of properties
      * If you don't mind redundant entries, just use setProperty
