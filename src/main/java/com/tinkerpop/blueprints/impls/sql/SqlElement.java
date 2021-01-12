@@ -268,27 +268,32 @@ abstract class SqlElement implements Element {
      * @param value
      */
     public void deleteProperty(String key, String value) {
-        String sql = "DELETE FROM " + getPropertiesTableName() + " WHERE " + getPropertyTableElementIdName() + " = ? AND key = ? AND value = ?";
-	    IPostgresConnection conn = null;
+ 	    IPostgresConnection conn = null;
 	    IResult r = new ResultPojo();
         try {
         	conn = provider.getConnection();   
            	conn.setProxyRole(r);
 
 	    	conn.beginTransaction(r);
-	    	Object [] vals = new Object[3];
-	    	vals[0] = id;
-	    	vals[1] = key;
-	    	vals[2] = value;
-	    	conn.executeSQL(sql, r, vals);
+	    	deleteProperty(conn, key, value, r);
 	    	conn.endTransaction(r);
-	    } catch (SQLException e) {
+	    } catch (Exception e) {
         	graph.getEnvironment().logError(e.getMessage(), e);
             throw new SqlGraphException(e);
         } finally {
         	conn.closeConnection(r);
         }
     }
+    
+    public void deleteProperty(IPostgresConnection conn, String key, String value, IResult r)  throws Exception {
+        String sql = "DELETE FROM " + getPropertiesTableName() + " WHERE " + getPropertyTableElementIdName() + " = ? AND key = ? AND value = ?";
+        Object [] vals = new Object[3];
+    	vals[0] = id;
+    	vals[1] = key;
+    	vals[2] = value;
+    	conn.executeSQL(sql, r, vals);
+    }
+
     
     @Override
     public <T> T removeProperty(String key) {
