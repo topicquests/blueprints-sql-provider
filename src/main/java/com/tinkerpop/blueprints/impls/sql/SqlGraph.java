@@ -399,16 +399,18 @@ public final class SqlGraph implements Graph {
      */
     public boolean edgeExists(IPostgresConnection conn, String inVertexId, String outVertexId, String relationLabel)
     				throws Exception {
-    	String sql = "SELECT id FROM tq_graph.edges WHERE label ='"+relationLabel+"' "+
-    				"AND vertex_in='"+inVertexId+"' AND vertex_out='"+outVertexId+"'";
+    	String sql = "SELECT id FROM tq_graph.edges WHERE label =?"+
+    				"AND vertex_in=? AND vertex_out=?";
     	IResult r = new ResultPojo();
     	conn.setProxyRole(r);
-    	Object [] obj = null;
+    	Object [] obj = new Object[3];
+    	obj[0] = relationLabel;
+    	obj[1] = inVertexId;
+    	obj[2] = outVertexId;
+    	 
     	conn.executeSelect(sql, r, obj);
     	ResultSet rs = (ResultSet)r.getResultObject();
-    	if (rs != null && rs.next())
-    		return true;
-    	return false; // default
+    	return (rs != null && rs.next());
     }
 
     @Override
